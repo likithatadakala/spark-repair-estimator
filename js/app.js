@@ -1,15 +1,32 @@
 import { loadAll, activeProject, newProject, overridesFor, persist, persistNow,
   state, addRoom, removeRoom, deleteProject, switchProject, renameProject,
-  setProjectPrice, resetGlobalPrices, applyPriceCSV, addCustomItem, hideItem } from './store.js';
+  setProjectPrice, resetGlobalPrices, applyPriceCSV, addCustomItem, hideItem, uid } from './store.js';
 import { parseCSV } from './data.js';
+import { putPhoto, getPhoto, delPhoto, compress } from './db.js';
 import { renderProject, renderRoom, renderSheet, updateAfterChange } from './views.js';
 
 const app = document.getElementById('app');
 let view = { name: 'project' };      // or { name:'room', room:'<instanceId>' }
 const expandedGroups = new Set();    // groupIds expanded in the current room
 let ui = { sheet: null };            // bottom-sheet UI state
+let photoUrls = [];                  // object-URLs from the current render (revoked next render)
 
 function currentRoom(p){ return p.rooms.find(r => r.instanceId === view.room) || null; }
+
+// Async thumbnail hydration. render() rebuilds innerHTML each call, so we revoke
+// the previous render's object-URLs first (no leak), then set src on any thumb
+// that hasn't been loaded yet. Fire-and-forget — never awaited by render().
+async function hydratePhotos(){
+  for (const u of photoUrls) URL.revokeObjectURL(u);
+  photoUrls = [];
+  const imgs = app.querySelectorAll('img.thumb[data-photo-id]:not([data-loaded])');
+  for (const img of imgs){
+    try {
+      const blob = await getPhoto(img.dataset.photoId);
+      if (blob){ const url = URL.createObjectURL(blob); photoUrls.push(url); img.src = url; img.dataset.loaded = '1'; }
+    } catch (e) { console.warn('photo load failed', e); }
+  }
+}
 
 function render(){
   const p = activeProject();
@@ -29,6 +46,8 @@ function render(){
       if (inp){ inp.focus(); inp.select(); }
     });
   }
+
+  hydratePhotos();   // async, fire-and-forget — hydrates thumbnails from IndexedDB
 }
 
 function rerenderPreservingScroll(){
@@ -138,6 +157,46 @@ app.addEventListener('click', (e) => {
     // sheet bubble to it. Only close on a direct backdrop hit or an explicit button.
     if (el.classList.contains('sheet-backdrop') && e.target !== el) return;
     ui.sheet = null; render(); return;
+  }
+
+  // --- Photos (room-level + serial-item-level), keyed into project.photoRefs ---
+  if (a === 'add-photo'){
+    const key = el.dataset.key;
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
+    input.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0';
+    document.body.appendChild(input);            // must be in DOM for reliable Android capture
+    input.addEventListener('change', async () => {
+      try {
+        const files = Array.from(input.files || []);
+        if (files.length){
+          const proj = activeProject();
+          const arr = (proj.photoRefs[key] ||= []);
+          for (const file of files){
+            const blob = await compress(file);
+            const id = uid('ph');
+            await putPhoto(id, blob);
+            arr.push({ id, name: file.name || (id + '.jpg') });
+          }
+          persist();
+          rerenderPreservingScroll();
+        }
+      } catch (err){ console.warn('add photo failed', err); alert('Could not add photo.'); }
+      finally { input.remove(); }
+    }, { once: true });
+    input.click();
+    return;
+  }
+
+  if (a === 'remove-photo'){
+    const { key, id } = el.dataset;
+    const proj = activeProject();
+    const arr = proj.photoRefs[key] || [];
+    proj.photoRefs[key] = arr.filter(ph => ph.id !== id);
+    delPhoto(id).catch(e => console.warn('del photo failed', e));   // fire-and-forget
+    persist();
+    rerenderPreservingScroll();
+    return;
   }
 
   // settings / deal / export / scan-serial: later tasks

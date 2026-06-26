@@ -45,6 +45,25 @@ function esc(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Horizontal, scrollable photo strip. Pure string render — thumbnails carry NO
+// src; app.js hydrates them async from IndexedDB after innerHTML is written.
+// `key` is either room.instanceId (room-level) or `${instanceId}:${itemId}`
+// (serial-item-level). May contain a colon — fine as an attribute value.
+export function renderPhotoStrip(project, key) {
+  const k = esc(key);
+  const entries = project.photoRefs?.[key] || [];
+  const thumbs = entries.map((p) => `
+      <span class="thumb-wrap">
+        <img class="thumb" data-photo-id="${esc(p.id)}" alt="photo">
+        <button class="thumb-remove" type="button" data-action="remove-photo" data-key="${k}" data-id="${esc(p.id)}" aria-label="Remove photo">&times;</button>
+      </span>`).join('');
+  return `
+    <div class="photo-strip">
+      ${thumbs}
+      <button class="thumb-add" type="button" data-action="add-photo" data-key="${k}">${ICON.camera}<span>Add Photo</span></button>
+    </div>`;
+}
+
 export function roomLabel(project, room) {
   if (room.label) return room.label;
   const type = ROOM_TYPES[room.typeId];
@@ -186,7 +205,8 @@ function renderItemRow(room, project, itemId, sel, overrides) {
   const serialBlock = item.serial
     ? `<button class="scan-serial" type="button" data-action="scan-serial" data-room="${rid}" data-item="${iid}">
          ${ICON.camera}<span>Scan serial</span>
-       </button>`
+       </button>
+       ${renderPhotoStrip(project, `${room.instanceId}:${itemId}`)}`
     : '';
 
   return `
@@ -277,6 +297,10 @@ export function renderRoom(project, room, overrides, expandedGroups) {
     </header>
 
     <main class="groups" data-scroll>
+      <section class="room-photos">
+        <h2 class="room-photos-label">Photos</h2>
+        ${renderPhotoStrip(project, room.instanceId)}
+      </section>
       ${groupsHtml}
     </main>
   </div>`;
