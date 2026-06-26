@@ -50,8 +50,11 @@ app.addEventListener('click', (e) => {
     if (!cur.checked) cur.qty = '';
     persist();
     rerenderPreservingScroll();
-    // focus the qty input that just appeared
-    if (cur.checked) app.querySelector(`[data-action="qty"][data-item="${item}"][data-room="${room}"]`)?.focus();
+    // focus the qty input that just appeared (escape ids for selector safety)
+    if (cur.checked) {
+      const ce = (s) => (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/[^\w-]/g, '\\$&');
+      app.querySelector(`[data-action="qty"][data-item="${ce(item)}"][data-room="${ce(room)}"]`)?.focus();
+    }
     return;
   }
 
