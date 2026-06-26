@@ -484,3 +484,56 @@ input{font:inherit}
 }
 .ocr-loading-msg{margin:0;font-size:.92rem;font-weight:600;color:var(--muted)}
 @keyframes ocr-spin{to{transform:rotate(360deg)}}
+
+/* ============================================================
+   Deal / margin analyzer sheet
+   ============================================================ */
+.deal-form{display:flex;flex-direction:column;gap:4px}
+.deal-field-label{font-size:.82rem;font-weight:600;color:var(--muted);margin-top:8px}
+.deal-input-wrap{position:relative;display:flex;align-items:center;margin:2px 0 6px}
+.deal-prefix{
+  position:absolute;left:14px;font-size:1.05rem;font-weight:600;
+  color:var(--muted);pointer-events:none;
+}
+.deal-input{
+  width:100%;min-height:var(--tap);padding:12px 14px 12px 28px;
+  font-size:1.05rem;color:var(--ink);font-variant-numeric:tabular-nums;
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  -webkit-appearance:none;appearance:none;
+}
+.deal-input:focus{outline:none;border-color:var(--orange);
+  box-shadow:0 0 0 3px rgba(196,68,30,.18)}
+
+.deal-result{
+  margin-top:14px;padding:16px;border-radius:var(--radius);
+  background:var(--bg);border:1px solid var(--line);
+}
+.deal-label{display:block;font-size:.78rem;font-weight:600;
+  text-transform:uppercase;letter-spacing:.02em;color:var(--muted)}
+.deal-val,.deal-margin,.deal-metric-val{font-variant-numeric:tabular-nums}
+
+.deal-repairs{display:flex;justify-content:space-between;align-items:baseline;
+  padding-bottom:12px;border-bottom:1px solid var(--line)}
+.deal-repairs .deal-val{font-size:1.05rem;font-weight:600;color:var(--ink-2)}
+
+/* margin is the hero number */
+.deal-hero{padding:14px 0;text-align:center}
+.deal-margin{display:block;margin:4px 0 2px;
+  font-size:2.2rem;font-weight:800;line-height:1.05}
+.deal-margin.is-ok{color:var(--ok)}
+.deal-margin.is-danger{color:var(--danger)}
+
+.deal-secondary{display:flex;gap:12px;padding-top:14px;border-top:1px solid var(--line)}
+.deal-metric{flex:1 1 0;text-align:center}
+.deal-metric-val{display:block;margin-top:4px;font-size:1.25rem;font-weight:700;color:var(--ink)}
+.deal-metric-val.is-ok{color:var(--ok)}
+.deal-metric-val.is-danger{color:var(--danger)}
+
+.deal-badge{
+  display:inline-block;margin-top:8px;padding:4px 12px;
+  font-size:.78rem;font-weight:700;border-radius:999px;
+}
+.deal-badge-over{color:#fff;background:var(--danger)}
+.deal-badge-ok{color:#fff;background:var(--ok)}
+
+.deal-note{margin:12px 2px 0;font-size:.8rem;line-height:1.4;color:var(--muted)}

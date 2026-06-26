@@ -1,6 +1,7 @@
 import { ROOM_TYPES, GROUP_LABELS } from './data.js';
 import { calcGrand, calcRoom, calcLine, progress, resolveCost, state,
-  getItem, groupItemIds } from './store.js';
+  getItem, groupItemIds, overridesFor } from './store.js';
+import { analyze } from './deal.js';
 
 // ============================================================
 // Inline SVG icon constants (24x24, currentColor, stroke-based)
@@ -471,6 +472,77 @@ function ocrSheet(sheet) {
   return sheetShell('Scanned Serial', body);
 }
 
+// ============================================================
+// Deal / margin analyzer — pure render.
+// renderDealResult builds JUST the results panel (id="deal-result") so app.js
+// can swap it surgically on input without re-rendering the sheet (keeps focus).
+// ============================================================
+export function renderDealResult(project, overrides) {
+  const repairs = calcGrand(project, overrides);
+  const r = analyze({ ...project.deal, repairs });
+  const marginCls = r.margin >= 0 ? 'is-ok' : 'is-danger';
+  const roiText = r.basis === 0 ? '—' : `${r.roi.toFixed(1)}%`;
+  const roiCls = r.basis === 0 ? '' : (r.roi >= 0 ? ' is-ok' : ' is-danger');
+
+  const hasPrice = String(project.deal?.purchasePrice ?? '').trim() !== '';
+  let badge = '';
+  if (hasPrice) {
+    badge = r.overBudget
+      ? '<span class="deal-badge deal-badge-over">Over max offer</span>'
+      : '<span class="deal-badge deal-badge-ok">Within budget</span>';
+  }
+
+  return `
+    <div class="deal-result" id="deal-result">
+      <div class="deal-repairs">
+        <span class="deal-label">Repairs (auto, from estimate)</span>
+        <span class="deal-val money">${fmt(repairs)}</span>
+      </div>
+      <div class="deal-hero">
+        <span class="deal-label">Projected margin</span>
+        <span class="deal-margin money ${marginCls}">${fmt(r.margin)}</span>
+        ${badge}
+      </div>
+      <div class="deal-secondary">
+        <div class="deal-metric">
+          <span class="deal-label">ROI</span>
+          <span class="deal-metric-val money${roiCls}">${roiText}</span>
+        </div>
+        <div class="deal-metric">
+          <span class="deal-label">Max offer (70% rule)</span>
+          <span class="deal-metric-val money">${fmt(r.maxOffer)}</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+function dealField(field, label, project) {
+  const id = `deal-${field}`;
+  return `
+    <label class="deal-field-label" for="${id}">${esc(label)}</label>
+    <div class="deal-input-wrap">
+      <span class="deal-prefix" aria-hidden="true">$</span>
+      <input id="${id}" class="deal-input" type="number" inputmode="decimal"
+             min="0" step="any" data-action="deal-input" data-field="${field}"
+             value="${esc(project.deal?.[field] ?? '')}" aria-label="${esc(label)}">
+    </div>`;
+}
+
+function dealSheet(project, overrides) {
+  const body = `
+    <div class="deal-form">
+      ${dealField('arv', 'After-repair value (ARV)', project)}
+      ${dealField('purchasePrice', 'Purchase price', project)}
+      ${dealField('holdingCosts', 'Holding costs', project)}
+    </div>
+    ${renderDealResult(project, overrides)}
+    <p class="deal-note">Repairs pulled live from your estimate. Max offer uses the 70% rule (70% of ARV − repairs).</p>
+    <div class="sheet-actions">
+      <button class="btn btn-primary sheet-btn" type="button" data-action="sheet-close">Done</button>
+    </div>`;
+  return sheetShell('Deal Analyzer', body);
+}
+
 export function renderSheet(ui, project) {
   if (!ui || !ui.sheet) return '';
   const s = ui.sheet;
@@ -479,6 +551,7 @@ export function renderSheet(ui, project) {
   if (s.type === 'prompt') return promptSheet(s);
   if (s.type === 'settings') return settingsSheet();
   if (s.type === 'ocr') return ocrSheet(s);
+  if (s.type === 'deal') return project ? dealSheet(project, overridesFor(project)) : '';
   return '';
 }
 

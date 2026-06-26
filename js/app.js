@@ -3,7 +3,7 @@ import { loadAll, activeProject, newProject, overridesFor, persist, persistNow,
   setProjectPrice, resetGlobalPrices, applyPriceCSV, addCustomItem, hideItem, uid } from './store.js';
 import { parseCSV } from './data.js';
 import { putPhoto, getPhoto, delPhoto, compress } from './db.js';
-import { renderProject, renderRoom, renderSheet, updateAfterChange } from './views.js';
+import { renderProject, renderRoom, renderSheet, updateAfterChange, renderDealResult } from './views.js';
 import { readSerial } from './ocr.js';
 
 const app = document.getElementById('app');
@@ -251,7 +251,10 @@ app.addEventListener('click', (e) => {
     return;
   }
 
-  // deal / export: later tasks
+  // --- Deal / margin analyzer ---
+  if (a === 'deal'){ ui.sheet = { type:'deal' }; render(); return; }
+
+  // export: later task
   console.log('action:', a);
 });
 
@@ -277,6 +280,18 @@ app.addEventListener('keydown', (e) => {
 });
 
 app.addEventListener('input', (e) => {
+  // Deal analyzer inputs — surgically replace ONLY #deal-result so the focused
+  // input keeps focus while margin/ROI/max-offer update live as you type.
+  const dealEl = e.target.closest('[data-action="deal-input"]');
+  if (dealEl){
+    const p = activeProject();
+    p.deal[dealEl.dataset.field] = dealEl.value;
+    persist();
+    const host = document.getElementById('deal-result');
+    if (host) host.outerHTML = renderDealResult(p, overridesFor(p));
+    return;
+  }
+
   const el = e.target.closest('[data-action="qty"], [data-action="price"]'); if (!el) return;
   const a = el.dataset.action;
   const { room, item } = el.dataset;
