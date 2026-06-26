@@ -146,7 +146,7 @@ app.addEventListener('click', (e) => {
     ui.sheet = null; render(); return;
   }
   if (a === 'delete-item'){
-    if (confirm('Remove this item? It will be hidden from all projects.')){
+    if (confirm('Remove this item? It will be removed from all projects.')){
       hideItem(el.dataset.item);
       rerenderPreservingScroll();
     }
@@ -264,7 +264,8 @@ app.addEventListener('click', (e) => {
     return;
   }
 
-  console.log('action:', a);
+  // `price-csv` is handled by the label's hidden file input via the change
+  // listener below; any other unmatched action is a no-op.
 });
 
 // Shared prompt-save logic (used by Save button + Enter key).
