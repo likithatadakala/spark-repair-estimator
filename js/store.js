@@ -126,7 +126,11 @@ export function removeRoom(project, instanceId){
   project.rooms = project.rooms.filter(r => r.instanceId !== instanceId);
   delete project.selections[instanceId];
   delete project.noAction[instanceId];
+  // Drop the room-level photo refs and any serial-item refs keyed "<instanceId>:<itemId>".
   delete project.photoRefs[instanceId];
+  for (const k of Object.keys(project.photoRefs)){
+    if (k.startsWith(instanceId + ':')) delete project.photoRefs[k];
+  }
   project.updatedAt = new Date().toISOString();
   persist();
 }
