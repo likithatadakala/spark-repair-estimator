@@ -55,13 +55,22 @@ icons/                  app icons
 tests/                  Node unit tests for the pure logic
 ```
 
-## Run locally
+## Run it
 
-A service worker and ES modules require HTTP (not `file://`), so serve the folder:
+**Easiest — no server:** open **`standalone.html`** (a single self-contained file with all CSS and JS inlined) by double-clicking it. Everything works except the offline service worker (which needs a server); OCR and Excel/ZIP export load their libraries from a CDN and need a connection the first time.
+
+**Full PWA experience:** the multi-file app uses ES modules and a service worker, which require HTTP (not `file://`), so serve the folder:
 
 ```bash
 python3 -m http.server 8080
 # then open http://localhost:8080
+```
+
+`standalone.html` is a build artifact produced from the source modules with:
+
+```bash
+npx esbuild js/app.js --bundle --format=iife --outfile=bundle.js
+# then inline bundle.js + styles.css into one HTML file
 ```
 
 To install as a PWA, open the served URL in Chrome (Android/desktop) or Safari (iOS) and choose "Add to Home Screen".
