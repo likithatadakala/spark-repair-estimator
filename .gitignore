@@ -1,0 +1,9 @@
+node_modules
+.DS_Store
+*.log
+
+# Confidential contest materials provided by Spark Homes — do not publish
+Contest Briefing.docx
+Example App.html
+Pricing List.csv
+Spark Group - Logo.png
