@@ -2,8 +2,8 @@
 // Exported separately so it can be unit-tested without a browser/Tesseract.
 export function parseSerialText(text){
   const raw = String(text || '');
-  // Plausible manufacture year: 1970..current+1.
-  const nowYear = 2026; // build-time constant; OCR years beyond this+1 are implausible
+  // Plausible manufacture year: 1970..current+1 (dynamic, so it never drifts stale).
+  const nowYear = new Date().getFullYear();
   let year = '';
   const yearMatches = raw.match(/\b(19[7-9]\d|20\d{2})\b/g) || [];
   for (const y of yearMatches){ const n = +y; if (n >= 1970 && n <= nowYear + 1){ year = y; break; } }
