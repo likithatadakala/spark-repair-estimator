@@ -95,3 +95,42 @@ export function newProject(name){
     priceOverrides:{}, deal:{arv:'',purchasePrice:'',holdingCosts:''} };
   state.projects.unshift(p); state.activeId = id; persist(); return p;
 }
+
+// ============================================================
+// ROOM MUTATORS
+// ============================================================
+export function addRoom(project, typeId){
+  if (!ROOM_TYPES[typeId]) return null;
+  const instanceId = uid('rm');
+  project.rooms.push({ instanceId, typeId, label: null });
+  project.updatedAt = new Date().toISOString();
+  persist();
+  return instanceId;
+}
+
+export function removeRoom(project, instanceId){
+  project.rooms = project.rooms.filter(r => r.instanceId !== instanceId);
+  delete project.selections[instanceId];
+  delete project.noAction[instanceId];
+  delete project.photoRefs[instanceId];
+  project.updatedAt = new Date().toISOString();
+  persist();
+}
+
+export function deleteProject(id){
+  state.projects = state.projects.filter(p => p.id !== id);
+  if (state.activeId === id){
+    state.activeId = state.projects[0]?.id || null;
+  }
+  persist();
+}
+
+export function switchProject(id){
+  if (state.projects.some(p => p.id === id)) state.activeId = id;
+  persist();
+}
+
+export function renameProject(id, name){
+  const p = state.projects.find(x => x.id === id);
+  if (p){ p.name = name; p.updatedAt = new Date().toISOString(); persist(); }
+}

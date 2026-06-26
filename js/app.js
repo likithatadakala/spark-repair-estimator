@@ -1,9 +1,11 @@
-import { loadAll, activeProject, newProject, overridesFor, persist, persistNow } from './store.js';
-import { renderProject, renderRoom, updateAfterChange } from './views.js';
+import { loadAll, activeProject, newProject, overridesFor, persist, persistNow,
+  state, addRoom, removeRoom, deleteProject, switchProject, renameProject } from './store.js';
+import { renderProject, renderRoom, renderSheet, updateAfterChange } from './views.js';
 
 const app = document.getElementById('app');
 let view = { name: 'project' };      // or { name:'room', room:'<instanceId>' }
 const expandedGroups = new Set();    // groupIds expanded in the current room
+let ui = { sheet: null };            // bottom-sheet UI state
 
 function currentRoom(p){ return p.rooms.find(r => r.instanceId === view.room) || null; }
 
@@ -13,10 +15,17 @@ function render(){
     const room = currentRoom(p);
     if (!room){ view = { name:'project' }; }      // room was removed; fall back
   }
-  if (view.name === 'room'){
-    app.innerHTML = renderRoom(p, currentRoom(p), overridesFor(p), expandedGroups);
-  } else {
-    app.innerHTML = renderProject(p, overridesFor(p));
+  const mainHtml = view.name === 'room'
+    ? renderRoom(p, currentRoom(p), overridesFor(p), expandedGroups)
+    : renderProject(p, overridesFor(p));
+  app.innerHTML = mainHtml + renderSheet(ui, p);
+
+  // Focus + select the prompt input when a prompt sheet is open.
+  if (ui.sheet?.type === 'prompt'){
+    requestAnimationFrame(() => {
+      const inp = document.getElementById('sheet-input');
+      if (inp){ inp.focus(); inp.select(); }
+    });
   }
 }
 
@@ -67,8 +76,67 @@ app.addEventListener('click', (e) => {
     return;
   }
 
-  // settings / projects / rename-project / add-room / deal / export / scan-serial: later tasks
+  // --- Room add / remove ---
+  if (a === 'add-room'){ ui.sheet = { type:'addroom' }; render(); return; }
+  if (a === 'create-room'){ addRoom(p, el.dataset.type); ui.sheet = null; render(); return; }
+  if (a === 'remove-room'){
+    if (confirm('Remove this room? Its entries will be lost.')){
+      removeRoom(p, el.dataset.room);
+      if (view.name === 'room' && view.room === el.dataset.room) view = { name:'project' };
+      render();
+    }
+    return;
+  }
+
+  // --- Project management ---
+  if (a === 'projects'){ ui.sheet = { type:'projects' }; render(); return; }
+  if (a === 'switch-project'){
+    switchProject(el.dataset.id); view = { name:'project' };
+    expandedGroups.clear(); ui.sheet = null; render(); return;
+  }
+  if (a === 'new-project'){ ui.sheet = { type:'prompt', mode:'new', value:'' }; render(); return; }
+  if (a === 'rename-project'){
+    const id = el.dataset.id || state.activeId;
+    const cur = state.projects.find(x => x.id === id);
+    ui.sheet = { type:'prompt', mode:'rename', id, value: cur?.name || '' };
+    render(); return;
+  }
+  if (a === 'delete-project'){
+    const id = el.dataset.id;
+    const proj = state.projects.find(x => x.id === id);
+    if (confirm('Delete "' + (proj?.name || 'project') + '"? This cannot be undone.')){
+      deleteProject(id);
+      if (!activeProject()) newProject('New Estimate');
+      view = { name:'project' }; render();
+    }
+    return;
+  }
+  if (a === 'prompt-save'){ savePrompt(); return; }
+  if (a === 'sheet-close'){ ui.sheet = null; render(); return; }
+
+  // settings / deal / export / scan-serial: later tasks
   console.log('action:', a);
+});
+
+// Shared prompt-save logic (used by Save button + Enter key).
+function savePrompt(){
+  if (ui.sheet?.type !== 'prompt') return;
+  const val = document.getElementById('sheet-input')?.value.trim();
+  if (!val){ ui.sheet = null; render(); return; }
+  if (ui.sheet.mode === 'new'){
+    newProject(val); view = { name:'project' }; expandedGroups.clear();
+  } else {
+    renameProject(ui.sheet.id, val);
+  }
+  ui.sheet = null; render();
+}
+
+// Enter-to-save / Escape-to-close on the prompt input.
+app.addEventListener('keydown', (e) => {
+  if (ui.sheet?.type !== 'prompt') return;
+  if (e.target?.id !== 'sheet-input') return;
+  if (e.key === 'Enter'){ e.preventDefault(); savePrompt(); }
+  else if (e.key === 'Escape'){ e.preventDefault(); ui.sheet = null; render(); }
 });
 
 app.addEventListener('input', (e) => {

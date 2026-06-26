@@ -255,3 +255,84 @@ input{font:inherit}
   background:var(--bg);border:1px solid var(--line);
 }
 .scan-serial:active{background:var(--line)}
+
+/* ============================================================
+   COMPONENT LAYER — bottom sheet (reusable: add-room, projects, prompt)
+   ============================================================ */
+.sheet-backdrop{
+  position:fixed;inset:0;z-index:1000;
+  background:rgba(16,24,40,.45);
+  display:flex;flex-direction:column;justify-content:flex-end;
+  animation:sheet-fade .18s ease;
+}
+@keyframes sheet-fade{from{opacity:0}to{opacity:1}}
+.sheet{
+  background:var(--card);
+  border-radius:20px 20px 0 0;
+  padding:8px var(--pad) 8px;
+  max-height:88dvh;display:flex;flex-direction:column;
+  box-shadow:0 -8px 30px rgba(16,24,40,.18);
+  animation:sheet-up .22s cubic-bezier(.22,.8,.3,1);
+}
+@keyframes sheet-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 4px 10px;
+}
+.sheet-title{margin:0;font-size:1.15rem;font-weight:700;color:var(--ink)}
+.sheet-close{min-width:var(--tap);min-height:var(--tap);
+  border-radius:12px;color:var(--muted);display:inline-flex;
+  align-items:center;justify-content:center}
+.sheet-close:active{background:var(--line)}
+.sheet-body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+.sheet-list{display:flex;flex-direction:column;gap:6px}
+
+/* generic tappable row */
+.sheet-row{
+  display:flex;align-items:center;gap:10px;width:100%;
+  min-height:var(--tap);padding:12px 14px;text-align:left;
+  background:var(--bg);border:1px solid var(--line);border-radius:14px;
+  color:var(--ink);
+}
+.sheet-row:active{background:var(--line)}
+.sheet-row-main{flex:1 1 auto;font-size:1rem;font-weight:600;color:var(--ink)}
+.sheet-row-chevron{display:inline-flex;flex:none;color:var(--muted-2)}
+.sheet-row.is-disabled{opacity:.55;background:var(--card);cursor:default}
+.sheet-tag{
+  flex:none;font-size:.72rem;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--muted);
+  background:var(--line);padding:3px 9px;border-radius:999px;
+}
+
+/* projects rows */
+.sheet-row-proj{padding:8px 8px 8px 14px}
+.sheet-row-proj.is-active{border-color:var(--orange);
+  box-shadow:inset 0 0 0 1px var(--orange)}
+.proj-pick{
+  display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  flex:1 1 auto;background:none;border:none;padding:8px 0;min-height:var(--tap);
+}
+.proj-pick-name{display:flex;align-items:center;gap:8px;
+  font-size:1rem;font-weight:600;color:var(--ink)}
+.proj-pick-date{font-size:.78rem;color:var(--muted)}
+.sheet-badge{
+  font-size:.66rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:#fff;background:var(--orange);padding:2px 8px;border-radius:999px;
+}
+.proj-act{flex:none;min-width:var(--tap);min-height:var(--tap);
+  border-radius:12px;color:var(--muted);
+  display:inline-flex;align-items:center;justify-content:center}
+.proj-act:active{background:var(--line)}
+.sheet-cta{margin-top:14px;width:100%}
+
+/* prompt sheet */
+.sheet-input{
+  width:100%;min-height:48px;padding:12px 14px;margin:6px 0 4px;
+  font-size:1.05rem;color:var(--ink);
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  -webkit-appearance:none;appearance:none;
+}
+.sheet-input:focus{outline:none;border-color:var(--orange);
+  box-shadow:0 0 0 3px rgba(196,68,30,.18)}
+.sheet-actions{display:flex;gap:10px;margin-top:14px}
+.sheet-btn{flex:1 1 0;justify-content:center}

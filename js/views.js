@@ -1,5 +1,5 @@
 import { ROOM_TYPES, GROUP_DEFS, GROUP_LABELS, ITEMS } from './data.js';
-import { calcGrand, calcRoom, calcLine, progress, resolveCost } from './store.js';
+import { calcGrand, calcRoom, calcLine, progress, resolveCost, state } from './store.js';
 
 // ============================================================
 // Inline SVG icon constants (24x24, currentColor, stroke-based)
@@ -25,6 +25,10 @@ const ICON = {
     '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>',
   camera:
     '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  trash:
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
+  close:
+    '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
 };
 
 // ============================================================
@@ -239,7 +243,7 @@ export function renderRoom(project, room, overrides, expandedGroups) {
       <div class="header-top">
         <button class="icon-btn icon-btn-dark" type="button" data-action="back" aria-label="Back to project">${ICON.back}</button>
         <h1 class="room-title">${esc(roomLabel(project, room))}</h1>
-        <span style="min-width:var(--tap)"></span>
+        <button class="icon-btn icon-btn-dark" type="button" data-action="remove-room" data-room="${esc(room.instanceId)}" aria-label="Remove room">${ICON.trash}</button>
       </div>
       <div class="total money" aria-label="Running total" data-total>${fmt(grand)}</div>
       <div class="progress-row">
@@ -254,6 +258,101 @@ export function renderRoom(project, room, overrides, expandedGroups) {
       ${groupsHtml}
     </main>
   </div>`;
+}
+
+// ============================================================
+// Bottom-sheet layer (reusable) — pure string render.
+// ui.sheet is null | {type:'addroom'} | {type:'projects'}
+//   | {type:'prompt', mode:'new'|'rename', id?, value?}
+// Only the backdrop and explicit close/cancel buttons carry
+// data-action="sheet-close". The inner .sheet has NO data-action,
+// so clicks inside it never bubble to a close handler.
+// ============================================================
+
+function shortDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function sheetShell(title, bodyHtml) {
+  return `
+  <div class="sheet-backdrop" data-action="sheet-close">
+    <div class="sheet safe-bottom" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+      <div class="sheet-head">
+        <h2 class="sheet-title">${esc(title)}</h2>
+        <button class="icon-btn sheet-close" type="button" data-action="sheet-close" aria-label="Close">${ICON.close}</button>
+      </div>
+      <div class="sheet-body">
+        ${bodyHtml}
+      </div>
+    </div>
+  </div>`;
+}
+
+function addRoomSheet(project) {
+  const present = new Set((project.rooms || []).map((r) => r.typeId));
+  const rows = Object.keys(ROOM_TYPES).map((typeId) => {
+    const type = ROOM_TYPES[typeId];
+    const label = esc(type.label);
+    if (type.singleton && present.has(typeId)) {
+      return `
+        <div class="sheet-row is-disabled" aria-disabled="true">
+          <span class="sheet-row-main">${label}</span>
+          <span class="sheet-tag">Added</span>
+        </div>`;
+    }
+    return `
+      <button class="sheet-row" type="button" data-action="create-room" data-type="${esc(typeId)}">
+        <span class="sheet-row-main">${label}</span>
+        <span class="sheet-row-chevron" aria-hidden="true">${ICON.chevron}</span>
+      </button>`;
+  }).join('');
+  return sheetShell('Add a room', `<div class="sheet-list">${rows}</div>`);
+}
+
+function projectsSheet() {
+  const rows = (state.projects || []).map((p) => {
+    const isActive = p.id === state.activeId;
+    const date = shortDate(p.updatedAt || p.createdAt);
+    return `
+      <div class="sheet-row sheet-row-proj${isActive ? ' is-active' : ''}">
+        <button class="sheet-row-main proj-pick" type="button" data-action="switch-project" data-id="${esc(p.id)}">
+          <span class="proj-pick-name">${esc(p.name)}${isActive ? '<span class="sheet-badge">Active</span>' : ''}</span>
+          ${date ? `<span class="proj-pick-date">${esc(date)}</span>` : ''}
+        </button>
+        <button class="icon-btn proj-act" type="button" data-action="rename-project" data-id="${esc(p.id)}" aria-label="Rename ${esc(p.name)}">${ICON.pencil}</button>
+        <button class="icon-btn proj-act" type="button" data-action="delete-project" data-id="${esc(p.id)}" aria-label="Delete ${esc(p.name)}">${ICON.trash}</button>
+      </div>`;
+  }).join('');
+  const body = `
+    <div class="sheet-list">${rows}</div>
+    <button class="btn btn-primary sheet-cta" type="button" data-action="new-project">${ICON.plus}<span>New Project</span></button>`;
+  return sheetShell('Projects', body);
+}
+
+function promptSheet(sheet) {
+  const title = sheet.mode === 'rename' ? 'Rename' : 'New Project';
+  const val = esc(sheet.value || '');
+  const body = `
+    <input id="sheet-input" class="sheet-input" type="text"
+           value="${val}" placeholder="e.g. 123 Main St"
+           autocomplete="off" autocapitalize="words">
+    <div class="sheet-actions">
+      <button class="btn btn-ghost sheet-btn" type="button" data-action="sheet-close">Cancel</button>
+      <button class="btn btn-primary sheet-btn" type="button" data-action="prompt-save">Save</button>
+    </div>`;
+  return sheetShell(title, body);
+}
+
+export function renderSheet(ui, project) {
+  if (!ui || !ui.sheet) return '';
+  const s = ui.sheet;
+  if (s.type === 'addroom') return project ? addRoomSheet(project) : '';
+  if (s.type === 'projects') return projectsSheet();
+  if (s.type === 'prompt') return promptSheet(s);
+  return '';
 }
 
 // ============================================================
