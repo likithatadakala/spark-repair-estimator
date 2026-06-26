@@ -4,6 +4,8 @@ A mobile-first, offline-capable Progressive Web App that lets Spark Homes acquis
 
 Built for the Spark Homes Developer Contest.
 
+**Live app:** https://spark-repair-estimator.vercel.app
+
 ## Highlights
 
 - **Dynamic room engine** — 7 configurable room types (Interior/General, Kitchen, Bathroom, Systems & Structure, Exterior, Bedroom, Living/Common). Rooms are added and removed freely during a walkthrough; multi-instance rooms auto-number ("Bathroom 1", "Bedroom 2").
