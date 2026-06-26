@@ -40,3 +40,58 @@ export function progress(project, overrides) {
   }
   return { total, done, pct: total ? Math.round(done / total * 100) : 0 };
 }
+
+// ============================================================
+// PERSISTENCE & STATE  (impure — browser only)
+// ============================================================
+const LS_PROJECTS = 'spark_projects_v1';
+const LS_GLOBAL   = 'spark_global_prices_v1';
+const LS_CATALOG  = 'spark_catalog_edits_v1'; // {customItems:[], hiddenItems:[]}
+const LS_ACTIVE   = 'spark_active_project_v1';
+
+export const state = {
+  projects: [],          // [{id,name,notes,createdAt,updatedAt,rooms,selections,noAction,photoRefs,priceOverrides,deal}]
+  activeId: null,
+  globalPrices: {},
+  catalogEdits: { customItems: [], hiddenItems: [] },
+};
+
+const read = (k, fallback) => { try { return JSON.parse(localStorage.getItem(k)) ?? fallback; } catch { return fallback; } };
+const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { console.warn('persist failed', k, e); } };
+
+export function loadAll(){
+  state.projects = read(LS_PROJECTS, []);
+  state.globalPrices = read(LS_GLOBAL, {});
+  state.catalogEdits = read(LS_CATALOG, { customItems: [], hiddenItems: [] });
+  state.activeId = read(LS_ACTIVE, null);
+}
+
+export function activeProject(){ return state.projects.find(p => p.id === state.activeId) || null; }
+export function overridesFor(project){ return { project: project?.priceOverrides || {}, global: state.globalPrices }; }
+
+let timer;
+export function persist(){
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    write(LS_PROJECTS, state.projects);
+    write(LS_GLOBAL, state.globalPrices);
+    write(LS_CATALOG, state.catalogEdits);
+    write(LS_ACTIVE, state.activeId);
+  }, 400);
+}
+export function persistNow(){ write(LS_PROJECTS, state.projects); write(LS_GLOBAL, state.globalPrices);
+  write(LS_CATALOG, state.catalogEdits); write(LS_ACTIVE, state.activeId); }
+
+let _seq = 0;
+export function uid(prefix='id'){ _seq++; return `${prefix}_${Date.now().toString(36)}_${_seq}`; }
+
+export function newProject(name){
+  const id = uid('proj');
+  const seed = ['interior','kitchen','systems','exterior','bathroom'];
+  const rooms = seed.map((typeId) => ({ instanceId: uid('rm'), typeId,
+    label: typeId === 'bathroom' ? 'Bathroom 1' : null }));
+  const p = { id, name: name || 'New Estimate', notes:'', createdAt:new Date().toISOString(),
+    updatedAt:new Date().toISOString(), rooms, selections:{}, noAction:{}, photoRefs:{},
+    priceOverrides:{}, deal:{arv:'',purchasePrice:'',holdingCosts:''} };
+  state.projects.unshift(p); state.activeId = id; persist(); return p;
+}
