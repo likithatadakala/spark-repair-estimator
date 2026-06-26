@@ -112,7 +112,12 @@ app.addEventListener('click', (e) => {
     return;
   }
   if (a === 'prompt-save'){ savePrompt(); return; }
-  if (a === 'sheet-close'){ ui.sheet = null; render(); return; }
+  if (a === 'sheet-close'){
+    // The backdrop is an ancestor of the sheet, so blank-space clicks inside the
+    // sheet bubble to it. Only close on a direct backdrop hit or an explicit button.
+    if (el.classList.contains('sheet-backdrop') && e.target !== el) return;
+    ui.sheet = null; render(); return;
+  }
 
   // settings / deal / export / scan-serial: later tasks
   console.log('action:', a);

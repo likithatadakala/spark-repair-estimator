@@ -100,7 +100,10 @@ export function newProject(name){
 // ROOM MUTATORS
 // ============================================================
 export function addRoom(project, typeId){
-  if (!ROOM_TYPES[typeId]) return null;
+  const type = ROOM_TYPES[typeId];
+  if (!type) return null;
+  // Singleton room types (whole-house sections) may only exist once per project.
+  if (type.singleton && project.rooms.some(r => r.typeId === typeId)) return null;
   const instanceId = uid('rm');
   project.rooms.push({ instanceId, typeId, label: null });
   project.updatedAt = new Date().toISOString();
