@@ -5,6 +5,7 @@ import { parseCSV } from './data.js';
 import { putPhoto, getPhoto, delPhoto, compress } from './db.js';
 import { renderProject, renderRoom, renderSheet, updateAfterChange, renderDealResult } from './views.js';
 import { readSerial } from './ocr.js';
+import { exportProject } from './export.js';
 
 const app = document.getElementById('app');
 let view = { name: 'project' };      // or { name:'room', room:'<instanceId>' }
@@ -254,7 +255,15 @@ app.addEventListener('click', (e) => {
   // --- Deal / margin analyzer ---
   if (a === 'deal'){ ui.sheet = { type:'deal' }; render(); return; }
 
-  // export: later task
+  // --- Export (styled Excel + photos bundled as a ZIP) ---
+  if (a === 'export'){
+    el.disabled = true;
+    exportProject(p, overridesFor(p))
+      .catch(err => { console.warn('export failed', err); alert('Could not export. Please try again.'); })
+      .finally(() => { el.disabled = false; });
+    return;
+  }
+
   console.log('action:', a);
 });
 
