@@ -174,11 +174,11 @@ app.addEventListener('input', (e) => {
   if (a === 'qty'){
     const sel = (p.selections[room] ||= {});
     (sel[item] ||= { checked:true, qty:'' }).qty = el.value;
-  } else { // price — per-project unit cost override
+    persist();
+  } else { // price — per-project unit cost override (setProjectPrice persists internally)
     setProjectPrice(p, item, el.value);
   }
   updateAfterChange(p, currentRoom(p), item, overridesFor(p));   // SURGICAL — no re-render
-  persist();
 });
 
 // Delegated change handler for the Settings price-CSV file input.
