@@ -54,7 +54,7 @@ export function renderPhotoStrip(project, key) {
   const entries = project.photoRefs?.[key] || [];
   const thumbs = entries.map((p) => `
       <span class="thumb-wrap">
-        <img class="thumb" data-photo-id="${esc(p.id)}" alt="photo">
+        <img class="thumb" data-photo-id="${esc(p.id)}" alt="${esc(p.name || 'photo')}">
         <button class="thumb-remove" type="button" data-action="remove-photo" data-key="${k}" data-id="${esc(p.id)}" aria-label="Remove photo">&times;</button>
       </span>`).join('');
   return `
