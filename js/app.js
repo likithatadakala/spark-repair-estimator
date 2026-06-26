@@ -337,3 +337,10 @@ app.addEventListener('change', (e) => {
 
 window.addEventListener('pagehide', persistNow);
 document.addEventListener('visibilitychange', () => { if (document.hidden) persistNow(); });
+
+// Register the service worker for offline support / installability.
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('SW registration failed', e));
+  });
+}
