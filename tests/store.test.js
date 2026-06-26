@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveCost, calcLine, calcRoom, calcGrand, progress } from '../js/store.js';
+import { resolveCost, calcLine, calcRoom, calcGrand, progress,
+  state, getItem, groupItemIds, addCustomItem, hideItem, setGlobalPrice, setProjectPrice, applyPriceCSV } from '../js/store.js';
 import { ITEMS, ROOM_TYPES } from '../js/data.js';
 
 const overrides = { project:{}, global:{} };
@@ -33,4 +34,42 @@ test('progress counts a group complete when any item checked OR noAction set', (
   const p = progress(project, overrides);
   assert.equal(p.total, 4);
   assert.equal(p.done, 2);
+});
+
+// reset runtime catalog between catalog tests
+function resetCatalog(){ state.catalogEdits = { customItems: [], hiddenItems: [] }; state.globalPrices = {}; }
+
+test('getItem resolves catalog items and custom items', () => {
+  resetCatalog();
+  assert.equal(getItem('ig-01').name, 'Refinish Hardwood Floor');
+  const id = addCustomItem({ name:'Closet Shelving', cost:120, unit:'LF', groupId:'closet' });
+  assert.equal(getItem(id).name, 'Closet Shelving');
+  assert.equal(getItem(id).cost, 120);
+  assert.equal(getItem('nope'), null);
+});
+
+test('groupItemIds includes customs and excludes hidden', () => {
+  resetCatalog();
+  const base = groupItemIds('flooring');
+  assert.ok(base.includes('ig-01'));
+  hideItem('ig-01');
+  assert.ok(!groupItemIds('flooring').includes('ig-01'));
+  const id = addCustomItem({ name:'Epoxy Floor', cost:3, unit:'sqft', groupId:'flooring' });
+  assert.ok(groupItemIds('flooring').includes(id));
+  resetCatalog();
+});
+
+test('resolveCost falls back to a custom item base cost', () => {
+  resetCatalog();
+  const id = addCustomItem({ name:'X', cost:50, unit:'ea.', groupId:'pest' });
+  assert.equal(resolveCost(id, { project:{}, global:{} }), 50);
+  resetCatalog();
+});
+
+test('applyPriceCSV updates global prices and returns count', () => {
+  resetCatalog();
+  const n = applyPriceCSV([{ id:'ig-01', cost:'9.5' }, { id:'ig-02', cost:'bad' }, { id:'ig-03', cost:'3' }]);
+  assert.equal(n, 2);
+  assert.equal(state.globalPrices['ig-01'], 9.5);
+  resetCatalog();
 });

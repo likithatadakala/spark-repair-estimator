@@ -1,10 +1,21 @@
 import { ITEMS, GROUP_DEFS, ROOM_TYPES } from './data.js';
 
+// ---- Runtime catalog (base ITEMS + custom items − hidden items) ----
+export function getItem(id){
+  return ITEMS[id] || state.catalogEdits.customItems.find(ci => ci.id === id) || null;
+}
+export function groupItemIds(groupId){
+  const hidden = new Set(state.catalogEdits.hiddenItems);
+  const base = (GROUP_DEFS[groupId] || []).filter(id => !hidden.has(id));
+  const customs = state.catalogEdits.customItems.filter(ci => ci.groupId === groupId).map(ci => ci.id);
+  return [...base, ...customs];
+}
+
 // overrides = { project:{itemId:cost}, global:{itemId:cost} }
 export function resolveCost(itemId, overrides) {
   if (overrides.project && itemId in overrides.project) return overrides.project[itemId];
   if (overrides.global  && itemId in overrides.global)  return overrides.global[itemId];
-  return ITEMS[itemId]?.cost ?? 0;
+  return getItem(itemId)?.cost ?? 0;
 }
 
 export function calcLine(itemId, sel, overrides) {
@@ -15,7 +26,7 @@ export function calcLine(itemId, sel, overrides) {
 }
 
 function roomItemIds(typeId) {
-  return ROOM_TYPES[typeId].groups.flatMap(g => GROUP_DEFS[g]);
+  return ROOM_TYPES[typeId].groups.flatMap(g => groupItemIds(g));
 }
 
 export function calcRoom(typeId, selections, overrides) {
@@ -34,7 +45,7 @@ export function progress(project, overrides) {
     for (const g of ROOM_TYPES[r.typeId].groups) {
       total++;
       const na = project.noAction?.[r.instanceId]?.[g];
-      const anyChecked = GROUP_DEFS[g].some(id => project.selections?.[r.instanceId]?.[id]?.checked);
+      const anyChecked = groupItemIds(g).some(id => project.selections?.[r.instanceId]?.[id]?.checked);
       if (na || anyChecked) done++;
     }
   }
@@ -136,4 +147,57 @@ export function switchProject(id){
 export function renameProject(id, name){
   const p = state.projects.find(x => x.id === id);
   if (p){ p.name = name; p.updatedAt = new Date().toISOString(); persist(); }
+}
+
+// ============================================================
+// PRICING & CATALOG MUTATORS
+// ============================================================
+export function setGlobalPrice(itemId, cost){
+  const c = parseFloat(cost);
+  if (!isNaN(c) && c >= 0){ state.globalPrices[itemId] = c; persist(); }
+}
+
+export function setProjectPrice(project, itemId, cost){
+  const c = parseFloat(cost);
+  if (cost === '' || cost == null || isNaN(c)){
+    delete project.priceOverrides[itemId];
+  } else if (c >= 0){
+    project.priceOverrides[itemId] = c;
+  }
+  persist();
+}
+
+export function resetGlobalPrices(){ state.globalPrices = {}; persist(); }
+
+export function applyPriceCSV(rows){
+  let n = 0;
+  for (const r of rows){
+    const id = (r.id || '').trim();
+    const c = parseFloat(r.cost);
+    if (id && !isNaN(c) && c >= 0){ state.globalPrices[id] = c; n++; }
+  }
+  persist();
+  return n;
+}
+
+export function addCustomItem({ name, cost, unit, groupId }){
+  const id = uid('cust');
+  state.catalogEdits.customItems.push({
+    id, name: name || 'Custom Item', cost: parseFloat(cost) || 0,
+    unit: unit || 'ea.', groupId, serial: false,
+  });
+  persist();
+  return id;
+}
+
+export function hideItem(itemId){
+  if (!state.catalogEdits.hiddenItems.includes(itemId)) state.catalogEdits.hiddenItems.push(itemId);
+  // For custom items, also remove them outright so they never reappear.
+  state.catalogEdits.customItems = state.catalogEdits.customItems.filter(ci => ci.id !== itemId);
+  persist();
+}
+
+export function unhideItem(itemId){
+  state.catalogEdits.hiddenItems = state.catalogEdits.hiddenItems.filter(x => x !== itemId);
+  persist();
 }

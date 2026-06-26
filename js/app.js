@@ -1,5 +1,7 @@
 import { loadAll, activeProject, newProject, overridesFor, persist, persistNow,
-  state, addRoom, removeRoom, deleteProject, switchProject, renameProject } from './store.js';
+  state, addRoom, removeRoom, deleteProject, switchProject, renameProject,
+  setProjectPrice, resetGlobalPrices, applyPriceCSV, addCustomItem, hideItem } from './store.js';
+import { parseCSV } from './data.js';
 import { renderProject, renderRoom, renderSheet, updateAfterChange } from './views.js';
 
 const app = document.getElementById('app');
@@ -111,6 +113,25 @@ app.addEventListener('click', (e) => {
     }
     return;
   }
+  // --- Settings & pricing ---
+  if (a === 'settings'){ ui.sheet = { type:'settings' }; render(); return; }
+  if (a === 'reset-prices'){ if (confirm('Reset all prices to defaults?')){ resetGlobalPrices(); render(); } return; }
+  if (a === 'save-custom-item'){
+    const name = document.getElementById('ci-name')?.value.trim();
+    const cost = document.getElementById('ci-cost')?.value;
+    const unit = document.getElementById('ci-unit')?.value.trim();
+    const groupId = document.getElementById('ci-group')?.value;
+    if (name && groupId){ addCustomItem({ name, cost, unit, groupId }); }
+    ui.sheet = null; render(); return;
+  }
+  if (a === 'delete-item'){
+    if (confirm('Remove this item? It will be hidden from all projects.')){
+      hideItem(el.dataset.item);
+      rerenderPreservingScroll();
+    }
+    return;
+  }
+
   if (a === 'prompt-save'){ savePrompt(); return; }
   if (a === 'sheet-close'){
     // The backdrop is an ancestor of the sheet, so blank-space clicks inside the
@@ -145,13 +166,38 @@ app.addEventListener('keydown', (e) => {
 });
 
 app.addEventListener('input', (e) => {
-  const el = e.target.closest('[data-action="qty"]'); if (!el) return;
+  const el = e.target.closest('[data-action="qty"], [data-action="price"]'); if (!el) return;
+  const a = el.dataset.action;
   const { room, item } = el.dataset;
   const p = activeProject();
-  const sel = (p.selections[room] ||= {});
-  (sel[item] ||= { checked:true, qty:'' }).qty = el.value;
+
+  if (a === 'qty'){
+    const sel = (p.selections[room] ||= {});
+    (sel[item] ||= { checked:true, qty:'' }).qty = el.value;
+  } else { // price — per-project unit cost override
+    setProjectPrice(p, item, el.value);
+  }
   updateAfterChange(p, currentRoom(p), item, overridesFor(p));   // SURGICAL — no re-render
   persist();
+});
+
+// Delegated change handler for the Settings price-CSV file input.
+app.addEventListener('change', (e) => {
+  const input = e.target.closest('#price-csv-input'); if (!input) return;
+  const file = input.files && input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const rows = parseCSV(String(reader.result || ''));
+      const n = applyPriceCSV(rows);
+      alert(n + ' prices updated');
+    } catch (err) {
+      console.warn('price CSV import failed', err);
+      alert('Could not read that CSV.');
+    }
+    ui.sheet = null; render();
+  };
+  reader.readAsText(file);
 });
 
 window.addEventListener('pagehide', persistNow);

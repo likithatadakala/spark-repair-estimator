@@ -1,5 +1,6 @@
-import { ROOM_TYPES, GROUP_DEFS, GROUP_LABELS, ITEMS } from './data.js';
-import { calcGrand, calcRoom, calcLine, progress, resolveCost, state } from './store.js';
+import { ROOM_TYPES, GROUP_LABELS } from './data.js';
+import { calcGrand, calcRoom, calcLine, progress, resolveCost, state,
+  getItem, groupItemIds } from './store.js';
 
 // ============================================================
 // Inline SVG icon constants (24x24, currentColor, stroke-based)
@@ -68,7 +69,7 @@ function roomGroupProgress(project, room) {
   let done = 0;
   for (const g of groups) {
     const noAction = na?.[g];
-    const anyChecked = (GROUP_DEFS[g] || []).some((id) => sel?.[id]?.checked);
+    const anyChecked = groupItemIds(g).some((id) => sel?.[id]?.checked);
     if (noAction || anyChecked) done++;
   }
   return { done, total: groups.length };
@@ -142,17 +143,23 @@ export function renderProject(project, overrides) {
 
 // Sum of line totals over a group's items for this room.
 function groupSubtotal(groupId, sel, overrides) {
-  return (GROUP_DEFS[groupId] || []).reduce(
+  return groupItemIds(groupId).reduce(
     (t, id) => t + calcLine(id, sel?.[id], overrides), 0);
 }
 
-function renderItemRow(room, itemId, sel, overrides) {
-  const item = ITEMS[itemId];
+// Per-line price approach: when a row is checked, we ALWAYS render a small inline
+// "Unit $" number input (data-action="price") prefilled with the resolved unit cost,
+// wired to setProjectPrice. A subtle "custom" tag shows when the project overrides it.
+// (We chose the always-visible inline input over a pencil toggle — fewer taps, and
+//  it keeps the editable cost adjacent to the qty the agent is already adjusting.)
+function renderItemRow(room, project, itemId, sel, overrides) {
+  const item = getItem(itemId);
   if (!item) return '';
   const cur = sel?.[itemId];
   const checked = !!cur?.checked;
   const line = calcLine(itemId, cur, overrides);
   const unitCost = resolveCost(itemId, overrides);
+  const overridden = project.priceOverrides && itemId in project.priceOverrides;
   const rid = esc(room.instanceId);
   const iid = esc(itemId);
 
@@ -162,6 +169,17 @@ function renderItemRow(room, itemId, sel, overrides) {
                 type="number" inputmode="decimal" min="0" step="any"
                 value="${esc(cur?.qty ?? '')}" aria-label="Quantity for ${esc(item.name)}">
          <span class="qty-unit">${esc(item.unit)}</span>
+       </div>`
+    : '';
+
+  const priceBlock = checked
+    ? `<div class="price-row">
+         <span class="price-label">Unit $</span>
+         <input class="price-input" data-action="price" data-room="${rid}" data-item="${iid}"
+                type="number" inputmode="decimal" min="0" step="any"
+                value="${esc(unitCost)}" aria-label="Unit cost for ${esc(item.name)}">
+         <span class="qty-unit">/ ${esc(item.unit)}</span>
+         ${overridden ? '<span class="price-custom-tag">custom</span>' : ''}
        </div>`
     : '';
 
@@ -179,12 +197,16 @@ function renderItemRow(room, itemId, sel, overrides) {
         ${checked ? ICON.check : ''}
       </button>
       <div class="item-main">
-        <span class="item-name">${esc(item.name)}</span>
+        <span class="item-name">${esc(item.name)}${overridden ? '<span class="price-dot" aria-hidden="true"></span>' : ''}</span>
         <span class="item-sub">${fmt(unitCost)} / ${esc(item.unit)}</span>
         ${qtyBlock}
+        ${priceBlock}
         ${serialBlock}
       </div>
-      <span class="line-total money${line > 0 ? '' : ' is-zero'}" data-line="${rid}:${iid}">${line > 0 ? fmt(line) : '—'}</span>
+      <span class="line-actions">
+        <span class="line-total money${line > 0 ? '' : ' is-zero'}" data-line="${rid}:${iid}">${line > 0 ? fmt(line) : '—'}</span>
+        <button class="line-del" type="button" data-action="delete-item" data-room="${rid}" data-item="${iid}" aria-label="Remove ${esc(item.name)}">${ICON.trash}</button>
+      </span>
     </div>`;
 }
 
@@ -195,7 +217,7 @@ function renderGroup(project, room, groupId, overrides, expanded) {
   const gid = esc(groupId);
 
   const noAction = !!na?.[groupId];
-  const anyChecked = (GROUP_DEFS[groupId] || []).some((id) => sel?.[id]?.checked);
+  const anyChecked = groupItemIds(groupId).some((id) => sel?.[id]?.checked);
   const done = noAction || anyChecked;
   const subtotal = groupSubtotal(groupId, sel, overrides);
 
@@ -208,7 +230,7 @@ function renderGroup(project, room, groupId, overrides, expanded) {
            <span class="noaction-label">No action needed</span>
          </button>
          <div class="item-list${noAction ? ' is-deemphasized' : ''}">
-           ${(GROUP_DEFS[groupId] || []).map((id) => renderItemRow(room, id, sel, overrides)).join('')}
+           ${groupItemIds(groupId).map((id) => renderItemRow(room, project, id, sel, overrides)).join('')}
          </div>
        </div>`
     : '';
@@ -346,12 +368,50 @@ function promptSheet(sheet) {
   return sheetShell(title, body);
 }
 
+function settingsSheet() {
+  const overrideCount = Object.keys(state.globalPrices || {}).length;
+  const hasOverrides = overrideCount > 0;
+  const statusLine = hasOverrides
+    ? `Custom prices active — ${overrideCount} item${overrideCount === 1 ? '' : 's'}`
+    : 'Using default prices';
+
+  const groupOptions = Object.keys(GROUP_LABELS)
+    .map((g) => `<option value="${esc(g)}">${esc(GROUP_LABELS[g])}</option>`)
+    .join('');
+
+  const body = `
+    <section class="settings-section">
+      <h3 class="settings-h">Global price schedule</h3>
+      <p class="settings-help">Upload a CSV (columns <code>id, cost</code>) to update standard prices across all projects.</p>
+      <label class="btn btn-ghost settings-file" data-action="price-csv">
+        ${ICON.export}<span>Upload price CSV</span>
+        <input type="file" id="price-csv-input" accept=".csv,.CSV" hidden>
+      </label>
+      <p class="settings-status${hasOverrides ? ' is-active' : ''}">${esc(statusLine)}</p>
+      ${hasOverrides ? '<button class="btn btn-ghost settings-reset" type="button" data-action="reset-prices">Reset to default prices</button>' : ''}
+    </section>
+
+    <section class="settings-section">
+      <h3 class="settings-h">Add a line item</h3>
+      <p class="settings-help">Create a custom item; it appears in the chosen group across all projects.</p>
+      <div class="ci-form">
+        <input id="ci-name" class="ci-field" type="text" placeholder="Item name" autocomplete="off">
+        <input id="ci-cost" class="ci-field" type="number" inputmode="decimal" min="0" step="any" placeholder="Cost">
+        <input id="ci-unit" class="ci-field" type="text" value="ea." placeholder="Unit" autocomplete="off">
+        <select id="ci-group" class="ci-field">${groupOptions}</select>
+        <button class="btn btn-primary ci-save" type="button" data-action="save-custom-item">${ICON.plus}<span>Add item</span></button>
+      </div>
+    </section>`;
+  return sheetShell('Settings & Pricing', body);
+}
+
 export function renderSheet(ui, project) {
   if (!ui || !ui.sheet) return '';
   const s = ui.sheet;
   if (s.type === 'addroom') return project ? addRoomSheet(project) : '';
   if (s.type === 'projects') return projectsSheet();
   if (s.type === 'prompt') return promptSheet(s);
+  if (s.type === 'settings') return settingsSheet();
   return '';
 }
 
@@ -374,7 +434,7 @@ export function updateAfterChange(project, room, itemId, overrides) {
 
   // Group subtotal — find the group (in this room's type) that owns the item.
   const groups = ROOM_TYPES[room.typeId]?.groups || [];
-  const groupId = groups.find((g) => (GROUP_DEFS[g] || []).includes(itemId));
+  const groupId = groups.find((g) => groupItemIds(g).includes(itemId));
   if (groupId) {
     const sub = groupSubtotal(groupId, sel, overrides);
     const gEl = document.querySelector(`[data-grouptotal="${cssEsc(rid)}:${cssEsc(groupId)}"]`);
