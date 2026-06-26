@@ -130,3 +130,128 @@ input{font:inherit}
 .btn-ghost:active{background:var(--line)}
 
 .empty-note{color:var(--muted);font-size:.9rem;text-align:center;padding:24px 0}
+
+/* ============================================================
+   COMPONENT LAYER — room detail screen
+   ============================================================ */
+.room-title{
+  margin:0;flex:1 1 auto;text-align:center;
+  font-size:1.05rem;font-weight:600;color:#fff;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* Scroll region for groups (mirrors .rooms) */
+.groups{
+  flex:1 1 auto;background:var(--bg);
+  display:flex;flex-direction:column;gap:10px;
+  padding:18px var(--pad);
+  padding-left:max(16px,env(safe-area-inset-left));
+  padding-right:max(16px,env(safe-area-inset-right));
+  padding-bottom:calc(32px + env(safe-area-inset-bottom));
+}
+
+/* --- Group card --- */
+.group{
+  background:var(--card);border-radius:var(--radius);
+  box-shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);
+  overflow:hidden;
+}
+.group-head{
+  display:flex;align-items:center;gap:10px;width:100%;
+  min-height:var(--tap);padding:12px 14px;text-align:left;
+  color:var(--ink);
+}
+.group-head:active{background:rgba(0,0,0,.03)}
+.group-chevron{
+  display:inline-flex;flex:none;color:var(--muted-2);
+  transition:transform .2s ease;
+}
+.group-chevron.is-open{transform:rotate(90deg)}
+.group-title{flex:1 1 auto;font-size:1rem;font-weight:600;min-width:0}
+.group-badge{
+  flex:none;font-size:.66rem;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ok);
+  background:rgba(22,163,74,.12);padding:3px 8px;border-radius:999px;
+}
+.group-total{flex:none;font-size:1rem;font-weight:700;color:var(--ink);
+  font-variant-numeric:tabular-nums;}
+.group-total.is-zero,.line-total.is-zero{color:var(--muted-2);font-weight:600}
+
+.group-body{
+  border-top:1px solid var(--line);
+  padding:4px 14px 10px;
+}
+
+/* --- No Action Needed row --- */
+.noaction{
+  display:flex;align-items:center;gap:10px;width:100%;
+  min-height:var(--tap);padding:8px 0;text-align:left;
+  color:var(--muted);font-style:italic;font-size:.9rem;
+}
+.noaction.is-on{color:var(--ink-2);font-style:normal}
+
+/* --- Item rows --- */
+.item-list{display:flex;flex-direction:column}
+.item-list.is-deemphasized{opacity:.5}
+.item-row{
+  display:flex;align-items:flex-start;gap:12px;
+  min-height:var(--tap);padding:10px 0;
+  border-top:1px solid var(--line);
+}
+.item-row.is-checked{
+  margin:0 -14px;padding:10px 14px;
+  background:rgba(196,68,30,.05);
+  box-shadow:inset 2px 0 0 var(--orange);
+  border-top-color:transparent;
+}
+.item-main{display:flex;flex-direction:column;gap:4px;flex:1 1 auto;min-width:0}
+.item-name{font-size:.95rem;font-weight:600;color:var(--ink)}
+.item-sub{font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.line-total{
+  flex:none;font-size:.95rem;font-weight:700;color:var(--ink);
+  font-variant-numeric:tabular-nums;padding-top:2px;
+}
+
+/* --- Checkbox (round) --- */
+.checkbox{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:26px;height:26px;margin-top:2px;border-radius:999px;
+  border:2px solid var(--muted-2);background:var(--card);color:#fff;
+  transition:background .12s ease,border-color .12s ease;
+}
+/* enlarge tap target without enlarging the visual */
+.checkbox[data-action]{width:var(--tap);height:var(--tap);margin:-9px 0 0 -9px;
+  padding:0;border:none;background:none;position:relative}
+.checkbox[data-action]::before{
+  content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:26px;height:26px;border-radius:999px;
+  border:2px solid var(--muted-2);background:var(--card);
+  transition:background .12s ease,border-color .12s ease;
+}
+.checkbox[data-action] svg{position:relative;z-index:1;color:#fff}
+.checkbox[data-action].is-checked::before{background:var(--orange);border-color:var(--orange)}
+.checkbox.checkbox-sm{width:22px;height:22px;border-width:2px}
+.checkbox.checkbox-sm.is-checked{background:var(--orange);border-color:var(--orange)}
+
+/* --- Quantity input --- */
+.qty-row{display:flex;align-items:center;gap:8px;margin-top:2px}
+.qty{
+  width:96px;min-height:var(--tap);
+  padding:8px 12px;text-align:right;
+  font-size:1rem;font-variant-numeric:tabular-nums;
+  color:var(--ink);background:var(--card);
+  border:1px solid var(--line);border-radius:12px;
+  -webkit-appearance:none;appearance:none;
+}
+.qty:focus{outline:none;border-color:var(--orange);
+  box-shadow:0 0 0 3px rgba(196,68,30,.18)}
+.qty-unit{font-size:.82rem;color:var(--muted)}
+
+/* --- Scan serial placeholder --- */
+.scan-serial{
+  display:inline-flex;align-items:center;gap:6px;align-self:flex-start;
+  min-height:36px;margin-top:2px;padding:0 12px;border-radius:10px;
+  font-size:.82rem;font-weight:600;color:var(--ink-2);
+  background:var(--bg);border:1px solid var(--line);
+}
+.scan-serial:active{background:var(--line)}
