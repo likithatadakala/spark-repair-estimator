@@ -70,10 +70,25 @@ export const state = {
 const read = (k, fallback) => { try { return JSON.parse(localStorage.getItem(k)) ?? fallback; } catch { return fallback; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { console.warn('persist failed', k, e); } };
 
+// Ensure a loaded project has every field current code expects, so projects
+// saved by an earlier version don't crash newer features (e.g. the deal analyzer).
+function normalizeProject(p){
+  p.rooms ||= [];
+  p.selections ||= {};
+  p.noAction ||= {};
+  p.photoRefs ||= {};
+  p.priceOverrides ||= {};
+  p.notes ??= '';
+  p.deal ||= { arv:'', purchasePrice:'', holdingCosts:'' };
+  return p;
+}
+
 export function loadAll(){
-  state.projects = read(LS_PROJECTS, []);
+  state.projects = read(LS_PROJECTS, []).map(normalizeProject);
   state.globalPrices = read(LS_GLOBAL, {});
   state.catalogEdits = read(LS_CATALOG, { customItems: [], hiddenItems: [] });
+  if (!state.catalogEdits.customItems) state.catalogEdits.customItems = [];
+  if (!state.catalogEdits.hiddenItems) state.catalogEdits.hiddenItems = [];
   state.activeId = read(LS_ACTIVE, null);
 }
 
