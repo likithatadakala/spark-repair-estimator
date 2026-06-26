@@ -4,6 +4,7 @@ import { loadAll, activeProject, newProject, overridesFor, persist, persistNow,
 import { parseCSV } from './data.js';
 import { putPhoto, getPhoto, delPhoto, compress } from './db.js';
 import { renderProject, renderRoom, renderSheet, updateAfterChange } from './views.js';
+import { readSerial } from './ocr.js';
 
 const app = document.getElementById('app');
 let view = { name: 'project' };      // or { name:'room', room:'<instanceId>' }
@@ -199,7 +200,58 @@ app.addEventListener('click', (e) => {
     return;
   }
 
-  // settings / deal / export / scan-serial: later tasks
+  // --- Serial-number OCR (scan -> store photo -> OCR -> confirm sheet) ---
+  if (a === 'scan-serial'){
+    const { room, item } = el.dataset;
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
+    input.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0';
+    document.body.appendChild(input);
+    input.addEventListener('change', async () => {
+      try {
+        const file = (input.files || [])[0];
+        if (!file) return;
+        const proj = activeProject();
+        const key = room + ':' + item;
+        const blob = await compress(file);
+        const id = uid('ph');
+        await putPhoto(id, blob);
+        (proj.photoRefs[key] ||= []).push({ id, name: file.name || (id + '.jpg') });
+        persist();
+        // show loading sheet, then OCR
+        ui.sheet = { type:'ocr', room, item, serial:'', year:'', text:'', loading:true };
+        render();
+        try {
+          const res = await readSerial(blob);
+          ui.sheet = { type:'ocr', room, item, serial:res.serial, year:res.year, text:res.text, loading:false };
+          render();
+        } catch (ocrErr){
+          ui.sheet = null; render();
+          alert('Serial scanning needs an internet connection the first time. Your photo was saved — try Scan again once online.');
+        }
+      } catch (err){ console.warn('scan-serial failed', err); alert('Could not capture photo.'); }
+      finally { input.remove(); }
+    }, { once:true });
+    input.click();
+    return;
+  }
+
+  if (a === 'ocr-save'){
+    if (ui.sheet?.type === 'ocr'){
+      const { room, item } = ui.sheet;
+      const serial = document.getElementById('ocr-serial')?.value.trim() || '';
+      const year = document.getElementById('ocr-year')?.value.trim() || '';
+      const proj = activeProject();
+      const sel = (proj.selections[room] ||= {});
+      const cur = (sel[item] ||= { checked:false, qty:'' });
+      cur.year = year; cur.serial = serial;
+      persist();
+    }
+    ui.sheet = null; render();
+    return;
+  }
+
+  // deal / export: later tasks
   console.log('action:', a);
 });
 

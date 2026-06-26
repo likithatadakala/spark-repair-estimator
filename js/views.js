@@ -202,10 +202,17 @@ function renderItemRow(room, project, itemId, sel, overrides) {
        </div>`
     : '';
 
+  const captured = (cur?.year || cur?.serial)
+    ? `<div class="serial-captured">
+         ${cur.year ? `<span class="serial-chip">Year ${esc(cur.year)}</span>` : ''}
+         ${cur.serial ? `<span class="serial-chip">S/N ${esc(cur.serial)}</span>` : ''}
+       </div>`
+    : '';
   const serialBlock = item.serial
     ? `<button class="scan-serial" type="button" data-action="scan-serial" data-room="${rid}" data-item="${iid}">
          ${ICON.camera}<span>Scan serial</span>
        </button>
+       ${captured}
        ${renderPhotoStrip(project, `${room.instanceId}:${itemId}`)}`
     : '';
 
@@ -429,6 +436,41 @@ function settingsSheet() {
   return sheetShell('Settings & Pricing', body);
 }
 
+// OCR result sheet — review/edit the parsed serial + manufacture year.
+// {type:'ocr', room, item, serial, year, text, loading?}
+function ocrSheet(sheet) {
+  const itemName = getItem(sheet.item)?.name || '';
+  const sub = itemName ? `<p class="ocr-sub">${esc(itemName)}</p>` : '';
+
+  if (sheet.loading) {
+    const body = `
+      ${sub}
+      <div class="ocr-loading">
+        <span class="ocr-spinner" aria-hidden="true"></span>
+        <p class="ocr-loading-msg">Reading the data plate…</p>
+      </div>`;
+    return sheetShell('Scanned Serial', body);
+  }
+
+  const body = `
+    ${sub}
+    <label class="ocr-label" for="ocr-serial">Serial number</label>
+    <input id="ocr-serial" class="ocr-field" type="text" value="${esc(sheet.serial)}"
+           placeholder="Serial / model" autocomplete="off" autocapitalize="characters">
+    <label class="ocr-label" for="ocr-year">Manufacture year</label>
+    <input id="ocr-year" class="ocr-field" type="text" inputmode="numeric" value="${esc(sheet.year)}"
+           placeholder="e.g. 2015" autocomplete="off">
+    <details class="ocr-raw">
+      <summary>Raw text</summary>
+      <pre class="ocr-raw-text">${esc(sheet.text)}</pre>
+    </details>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost sheet-btn" type="button" data-action="sheet-close">Cancel</button>
+      <button class="btn btn-primary sheet-btn" type="button" data-action="ocr-save">Save</button>
+    </div>`;
+  return sheetShell('Scanned Serial', body);
+}
+
 export function renderSheet(ui, project) {
   if (!ui || !ui.sheet) return '';
   const s = ui.sheet;
@@ -436,6 +478,7 @@ export function renderSheet(ui, project) {
   if (s.type === 'projects') return projectsSheet();
   if (s.type === 'prompt') return promptSheet(s);
   if (s.type === 'settings') return settingsSheet();
+  if (s.type === 'ocr') return ocrSheet(s);
   return '';
 }
 

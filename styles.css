@@ -434,3 +434,53 @@ input{font:inherit}
 .thumb-add:active{background:rgba(196,68,30,.08)}
 /* Serial-item strip sits tighter under the qty/scan controls. */
 .item-main .photo-strip{margin-top:8px}
+
+/* ============================================================
+   Serial OCR — captured chips on the row + scan result sheet (Task 10)
+   ============================================================ */
+.serial-captured{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.serial-chip{
+  display:inline-flex;align-items:center;
+  padding:3px 9px;font-size:.72rem;font-weight:700;
+  letter-spacing:.02em;color:var(--orange-600);
+  background:rgba(196,68,30,.08);border:1px solid rgba(196,68,30,.2);
+  border-radius:999px;font-variant-numeric:tabular-nums;
+}
+
+.ocr-sub{margin:0 0 14px;font-size:.9rem;font-weight:600;color:var(--muted)}
+.ocr-label{
+  display:block;margin:12px 0 6px;font-size:.72rem;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+}
+.ocr-field{
+  width:100%;min-height:var(--tap);padding:11px 14px;
+  font-size:1rem;color:var(--ink);
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  -webkit-appearance:none;appearance:none;
+}
+.ocr-field:focus{outline:none;border-color:var(--orange);
+  box-shadow:0 0 0 3px rgba(196,68,30,.18)}
+
+.ocr-raw{margin-top:14px}
+.ocr-raw summary{
+  font-size:.78rem;font-weight:700;color:var(--muted);cursor:pointer;
+  padding:6px 0;list-style:revert;
+}
+.ocr-raw-text{
+  margin:6px 0 0;max-height:140px;overflow:auto;-webkit-overflow-scrolling:touch;
+  padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:.72rem;line-height:1.4;white-space:pre-wrap;word-break:break-word;
+  color:var(--ink-2);background:var(--bg);border:1px solid var(--line);border-radius:10px;
+}
+
+.ocr-loading{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;padding:36px 0 30px;
+}
+.ocr-spinner{
+  width:34px;height:34px;border-radius:50%;
+  border:3px solid var(--line);border-top-color:var(--orange);
+  animation:ocr-spin .8s linear infinite;
+}
+.ocr-loading-msg{margin:0;font-size:.92rem;font-weight:600;color:var(--muted)}
+@keyframes ocr-spin{to{transform:rotate(360deg)}}
